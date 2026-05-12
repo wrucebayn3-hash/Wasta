@@ -1,12 +1,9 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaNeon } from '@prisma/adapter-neon'
 import bcrypt from 'bcryptjs'
-import path from 'path'
 
 async function main() {
-  const { PrismaLibSql } = await import('@prisma/adapter-libsql')
-  const adapter = new PrismaLibSql({
-    url: `file:${path.join(process.cwd(), 'prisma/dev.db')}`,
-  })
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! })
   const prisma = new PrismaClient({ adapter })
 
   console.log('🌱 Seeding database...')
