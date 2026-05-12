@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  SEEKER
+  POSTER
+  BOTH
+  ADMIN
+}
+
+enum JobStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  DRAFT
+}
+
+enum WorkMode {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum JobType {
+  FULLTIME
+  PARTTIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
+}
+
+enum ExperienceLevel {
+  ENTRY
+  MID
+  SENIOR
+  LEAD
+  EXECUTIVE
+}
+
+enum ReferralStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  REFERRED
+  CLOSED
+}
+
+enum NotificationType {
+  REFERRAL_REQUEST
+  REFERRAL_ACCEPTED
+  REFERRAL_REJECTED
+  REFERRAL_REFERRED
+  JOB_CLOSED
+  ADMIN_ACTION
+  NEW_MESSAGE
+  SYSTEM
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  password      String?
+  role          UserRole  @default(SEEKER)
+  isActive      Boolean   @default(true)
+  isSuspended   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile           Profile?
+  postedJobs        Job[]           @relation("JobPoster")
+  sentRequests      ReferralRequest[] @relation("Seeker")
+  receivedRequests  ReferralRequest[] @relation("Referrer")
+  savedJobs         SavedJob[]
+  sentMessages      Message[]       @relation("Sender")
+  receivedMessages  Message[]       @relation("Receiver")
+  notifications     Notification[]
+  adminActions      AdminAction[]
+  activityLogs      ActivityLog[]
+  reports           Report[]        @relation("Reporter")
+  reportedBy        Report[]        @relation("Reported")
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio             String?
+  phone           String?
+  location        String?
+  linkedinUrl     String?
+  portfolioUrl    String?
+  resumeUrl       String?
+  currentCompany  String?
+  currentRole     String?
+  headline        String?
+  skills          String   @default("[]")
+  experience      String   @default("[]")
+  education       String   @default("[]")
+  preferredRoles  String   @default("[]")
+  referralPrefs   String?
+  isOpenToRefer   Boolean  @default(true)
+  completionPct   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Job {
+  id               String          @id @default(cuid())
+  title            String
+  company          String
+  location         String
+  workMode         WorkMode        @default(ONSITE)
+  jobType          JobType         @default(FULLTIME)
+  experienceLevel  ExperienceLevel @default(MID)
+  description      String
+  requirements     String
+  skills           String          @default("[]")
+  industry         String?
+  salary           String?
+  deadline         DateTime?
+  status           JobStatus       @default(ACTIVE)
+  referralAvailable Boolean        @default(true)
+  viewCount        Int             @default(0)
+  posterId         String
+  poster           User            @relation("JobPoster", fields: [posterId], references: [id])
+  referralRequests ReferralRequest[]
+  savedBy          SavedJob[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model ReferralRequest {
+  id             String         @id @default(cuid())
+  jobId          String
+  job            Job            @relation(fields: [jobId], references: [id])
+  seekerId       String
+  seeker         User           @relation("Seeker", fields: [seekerId], references: [id])
+  referrerId     String
+  referrer       User           @relation("Referrer", fields: [referrerId], references: [id])
+  message        String
+  resumeUrl      String?
+  status         ReferralStatus @default(PENDING)
+  notes          String?
+  messages       Message[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Message {
+  id                String          @id @default(cuid())
+  senderId          String
+  sender            User            @relation("Sender", fields: [senderId], references: [id])
+  receiverId        String
+  receiver          User            @relation("Receiver", fields: [receiverId], references: [id])
+  referralRequestId String?
+  referralRequest   ReferralRequest? @relation(fields: [referralRequestId], references: [id])
+  content           String
+  isRead            Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+}
+
+model SavedJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+}
+
+model Industry {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model SkillTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
+model AdminAction {
+  id          String   @id @default(cuid())
+  adminId     String
+  admin       User     @relation(fields: [adminId], references: [id])
+  action      String
+  targetType  String
+  targetId    String
+  details     String?
+  createdAt   DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String
+  reporter    User     @relation("Reporter", fields: [reporterId], references: [id])
+  reportedId  String
+  reported    User     @relation("Reported", fields: [reportedId], references: [id])
+  reason      String
+  details     String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
